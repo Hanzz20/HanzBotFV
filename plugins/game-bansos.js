@@ -3,10 +3,10 @@ import fs from "fs"
 let handler = async(m, { conn, args, usedPrefix, DevMode }) => {
   try {
     global.db.data.users[m.sender].lastbansos = global.db.data.users[m.sender].lastbansos || 0
-    let Aku = Math.floor(Math.random() * 100)
-    let Kamu = Math.floor(Math.random() * 75) // hehe Biar Susah Menang :v
-    let kbansos = fs.readFileSync("./lib/kbansos.jpg")
-    let mbansos = fs.readFileSync("./lib/mbansos.jpg")
+    let Aku = Math.floor(Math.random() * 50)
+    let Kamu = Math.floor(Math.random() * 100)
+    let kbansos = fs.readFileSync("./data/kbansos.jpg")
+    let mbansos = fs.readFileSync("./data/mbansos.jpg")
     //let name = conn.getName[m.sender]
     let __timers = (new Date - global.db.data.users[m.sender].lastbansos)
     let _timers = (300000 - __timers)
@@ -14,12 +14,12 @@ let handler = async(m, { conn, args, usedPrefix, DevMode }) => {
     let user = global.db.data.users[m.sender]
     if(new Date - global.db.data.users[m.sender].lastbansos > 300000) {
       if(Aku > Kamu) {
-        conn.sendMessage(m.chat, { image: kbansos, caption: "Kamu Tertangkap Setelah Kamu korupsi dana bansos🕴️💰,  Dan kamu harus membayar denda 3 Juta rupiah💵", quoted: m, thumbnail: Buffer.alloc(0) })
-        user.money -= 3000000
+        conn.sendMessage(m.chat, { image: kbansos, caption: "Kamu Tertangkap Setelah Kamu korupsi dana bansos🕴️💰,  Dan kamu harus membayar denda 3 Juta rupiah💵", thumbnail: Buffer.alloc(0) }, { quoted: m })
+        global.db.data.users[m.sender].money -= 3000000
         global.db.data.users[m.sender].lastbansos = new Date * 1
       } else if(Aku < Kamu) {
-        user.money += 3000000
-        conn.sendMessage(m.chat, { image: mbansos, caption: "Kamu berhasil  korupsi dana bansos🕴️💰,  Dan kamu mendapatkan 3 Juta rupiah💵", quoted: m, thumbnail: Buffer.alloc(0) })
+        global.db.data.users[m.sender].money += 3000000
+        conn.sendMessage(m.chat, { image: mbansos, caption: "Kamu berhasil  korupsi dana bansos🕴️💰,  Dan kamu mendapatkan 3 Juta rupiah💵", thumbnail: Buffer.alloc(0) }, { quoted: m })
         global.db.data.users[m.sender].lastbansos = new Date * 1
       } else {
         m.reply("Sorry Gan Lu g Berhasil Korupsi bansos Dan Tidak masuk penjara karna kamu *melarikan diri🏃*")
