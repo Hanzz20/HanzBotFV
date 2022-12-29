@@ -39,7 +39,7 @@ global.APIKeys = { // APIKey Here
   "https://leyscoders-api.herokuapp.com": "dappakntlll",
   "https://zenzapis.xyz": "BagasPrdn",
   "https://caliphapi.me": "WKuBEyKx",
-  "https://dvanzapi.my.id": "QDw0fK14w9mSK3iu"
+  "https://dvanzapi.my.id": "<kosong>"
 }
 
 // Sticker WM
