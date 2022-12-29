@@ -43,35 +43,24 @@ global.APIKeys = { // APIKey Here
 }
 
 // Sticker WM
-global.packname = "Misaki Mei Bot"
-global.author = "Restu"
-global.wm = "Adventure pitur"
+global.packname = "Created By HanzBot"
+global.author = "Hanz"
+global.wm = "HanzBot"
 global.multiplier = 69 // The higher, The harder levelup
 
 //
 global.eror = "Error bang"
 global.wait = "⏳ | Please wait..."
 global.render = "wait render"
-global.webs = "https://muhammadrestu999.github.io" //Your Website
+global.webs = "https://github.com/Hanzz20" //Your Website
 global.logo = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKsHEAITWM7dPQ_irYtNvZ1hiM_zj4tZ4f6A&usqp=CAU"//Your logo
-global.gcwangsaf = "https://chat.whatsapp.com/Fln93hFT2liHb3uazSZQ0m"//Link Group whatsapp
+global.gcwangsaf = "https://chat.whatsapp.com/I8ZuTtwlyzcH0vFS6BJcxP" //Link Group whatsapp
 
 //Donasi
-global.donasi = [
-  ["dana", "085783417029"],
-  ["gopay", "085783417029"],
-  ["paypal", "https://paypal.me/mrstuu"],
-  ["pulsa", "085783417029"],
-  ["saweria", "https://saweria.co/MuhammadRestu"]
-]
-  // [name, value]
-
-//Donstion
-global.donation = [
-  ["paypal", "https://paypal.me/mrstuu"]
-]
-  // [name, value]
-
+global.saweria = "Gapunya" // website saweria.co
+global.dana = "081537442307" // dana here
+global.pulsa = "081537442307" // pulsa here
+global.gopay = "081537442307" // number for Payment digital Gopay Gojek
 
 
 //Rpg
