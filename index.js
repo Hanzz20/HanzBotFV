@@ -16,15 +16,15 @@ const { name, author } = require(join(__dirname, './package.json')) // https://w
 const { say } = cfonts
 const rl = createInterface(process.stdin, process.stdout)
 
-say('HanzBot', {
-  font: 'block',
+say('Lightweight\nWhatsApp Bot', {
+  font: 'chrome',
   align: 'center',
-  gradient: ['red', 'blue']
+  gradient: ['red', 'magenta']
 })
-say(`'${name}'By @${author.name || author}`, {
+say(`'${name}' By @${author.name || author}`, {
   font: 'console',
   align: 'center',
-  colors: ['magenta']
+  gradient: ['red', 'magenta']
 })
 
 var isRunning = false
@@ -36,13 +36,18 @@ function start(file) {
   if (isRunning) return
   isRunning = true
   let args = [join(__dirname, file), ...process.argv.slice(2)]
+  say([process.argv[0], ...args].join(' '), {
+    font: 'console',
+    align: 'center',
+    gradient: ['red', 'magenta']
+  })
   setupMaster({
     exec: args[0],
     args: args.slice(1),
   })
   let p = fork()
   p.on('message', data => {
-    console.log('[Diterima]', data)
+    console.log('[RECEIVED]', data)
     switch (data) {
       case 'reset':
         p.process.kill()
@@ -56,8 +61,8 @@ function start(file) {
   })
   p.on('exit', (_, code) => {
     isRunning = false
-    console.error('Error Kontol,Restart/Cek Kelengkapan File Napa\nExited with code:', code)
-    if (code === 0) return
+    console.error('Exited with code:', code)
+    if(code !== "SIGKILL") return
     watchFile(args[0], () => {
       unwatchFile(args[0])
       start(file)

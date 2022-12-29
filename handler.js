@@ -7,6 +7,10 @@ import chalk from 'chalk'
 //import Canvas from "discord-canvas"
 import uploadImage from'./lib/uploadImage.js'
 import fetch from 'node-fetch'
+import crypto from "crypto"
+
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
+
 /**
  * @type {import('@adiwajshing/baileys')}
  */
@@ -22,16 +26,72 @@ const delay = ms => isNumber(ms) && new Promise(resolve => setTimeout(function (
  * @param {import('@adiwajshing/baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate 
  */
 export async function handler(chatUpdate) {
+    //if(chatUpdate.messages && Object.keys(chatUpdate.messages[0].message)[0] == "pollCreationMessage") global.lastPoll = chatUpdate
+
     this.msgqueque = this.msgqueque || []
     if (!chatUpdate)
         return
     this.pushMessage(chatUpdate.messages).catch(console.error)
     let m = chatUpdate.messages[chatUpdate.messages.length - 1]
+    //if(m.messageStubType || m.message.protocolMessage) console.log(m)
+
+    global.ntah = m
+
     if (!m)
         return
     if (global.db.data == null)
         await global.loadDatabase()
     try {
+        if(m.messageStubType) {
+          let stub = m.messageStubType
+          let chat = global.db.data.chats[m?.key?.remoteJid] || {}
+          if(((stub >= 21 && stub <= 26) || (stub == 29 || stub == 30)) && !chat.detect) return
+
+          let jid = m?.key?.remoteJid
+          let from = m?.key?.participant?.split("@")[0]
+
+          const infos = async(text) => await conn.fReply(jid, text, null, "0@s.whatsapp.net", "Pemberitahuan", "status@broadcast", null, { mentions: conn.parseMention(text) })
+
+          if(stub == 25) { // edit info gc
+            let isOn = m.messageStubParameters[0] == "on"
+            await infos(`@${from} telah mengubah setelan grup untuk mengizinkan ${isOn ? "hanya admin yang" : "agar semua peserta"} dapat mengedit info grup ini.`)
+          } else if(stub == 26) { // mengirim pesan
+            let isOn = m.messageStubParameters[0] == "on"
+            await infos(`@${from} telah mengubah setelan grup untuk mengizinkan ${isOn ? "hanya admin yang" : "agar semua peserta"} dapat mengirim ke grup ini.`)
+          /*} else if(stub == 27) { // add
+            let participant = m.messageStubParameters.map(v => v.split("@")[0])
+            if(from) await infos(`@${from} telah menambahkan @${participant.join(", ")}`)
+            else await infos(`@${participant.join(", ")} bergabung menggunakan tautan undangan grup ini`)
+          } else if(stub == 28) { // kick
+            let who = m.messageStubParameters[0].split("@")[0]
+            await infos(`@${who} dikeluarkan oleh @${from}`)*/
+          } else if(stub == 29) { // promote
+            let who = m.messageStubParameters[0].split("@")[0]
+            await infos(`@${from} telah menjadikan @${who} Admin`)
+          } else if(stub == 30) { // demote
+            let who = m.messageStubParameters[0].split("@")[0]
+            await infos(`@${from} telah mencabut jabatan Admin dari @${who}`)
+          /*} else if(stub == 31) { // invite
+            let who = m.messageStubParameters[0].split("@")[0]
+            await infos(`@${who} bergabung menggunakan tauran undangan @${from}`)
+          } else if(stub == 32) { // leave
+            let who = m.messageStubParameters[0].split("@")[0]
+            await infos(`@${who} keluar`)*/
+          }
+        }
+        if(m.message?.protocolMessage?.type == 3) {
+          if(!m.key.remoteJid.endsWith("@g.us")) return
+
+          let chat = global.db.data.chats[m.key.remoteJid]
+          if(!chat.detect) return
+
+          let detik = m.message.protocolMessage.ephemeralExpiration
+          let jam = detik / 60 / 60
+          let hari = jam / 24
+
+          await conn.fReply(m.key.remoteJid, `@${m.key.participant.split("@")[0]} telah me${m.message.protocolMessage.ephemeralExpiration != 0 ? "ngaktifkan" : "matikan"} Pesan Sementara${m.message.protocolMessage.ephemeralExpiration ? "\npesan baru akan hilang dari chat ini " + (hari != 1 ? hari + " hari" : jam + " jam") + " setelah dikirim": ""}`, null, "0@s.whatsapp.net", "Pemberitahuan", "status@broadcast", null, { mentions: [m.key.participant] })
+        }
+
         m = smsg(this, m) || m
         if (!m)
             return
@@ -43,6 +103,10 @@ export async function handler(chatUpdate) {
             if (typeof user !== 'object')
                 global.db.data.users[m.sender] = {}
             if (user) {
+                if (!isNumber(user.armor))
+                    user.armor = 0
+                if (user.armor > 11)
+                    user.armor = 11
                 if (!isNumber(user.exp))
                     user.exp = 0
                 if (!isNumber(user.limit))
@@ -74,7 +138,7 @@ export async function handler(chatUpdate) {
                 if (!('autolevelup' in user))
                     user.autolevelup = false
 
-                if ([...(global.owner.map(v => v[0] + "@s.whatsapp.net")), global.girlfren[0] + "@s.whatsapp.net"].includes(m.sender) && !isNumber(user.money))
+                if (global.owner.map(v => v[0] + "@s.whatsapp.net").includes(m.sender) && !isNumber(user.money))
                     user.money = Infinity
 
                 if (!isNumber(user.money))
@@ -413,7 +477,7 @@ export async function handler(chatUpdate) {
         } catch (e) {
             console.error(e)
         }
-        const isROwner = [conn.decodeJid(global.conn.user.id), ...global.owner.map(([number]) => number), global.girlfren[0]].map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(m.sender)
+        const isROwner = [conn.decodeJid(global.conn.user.id), ...global.owner.map(([number]) => number)].map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(m.sender)
         const isOwner = isROwner || m.fromMe
         if (opts['nyimak'])
             return
@@ -428,8 +492,17 @@ export async function handler(chatUpdate) {
         if (typeof m.text !== 'string')
             m.text = ''
 
-        const isMods = isOwner || global.mods.map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(m.sender)
-        const isPrems = isROwner || global.prems.map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(m.sender)
+        const isMods = isOwner || global.mods.includes(m.sender)
+        const isPrems = isROwner || global.prems.some(v => v.jid == m.sender)
+
+        if(global.prems.some(v => v.jid == m.sender)) {
+          let { to } = global.prems.find(v => v.jid == m.sender)
+          if(to - Date.now() <= 0) {
+            global.prems = global.prems.filter(v => v.jid != m.sender)
+            fs.writeFileSync("data/premium.json", JSON.stringify(prems, null, 2))
+            await m.reply("Waktu premium mu sudah berakhir\nChat owner untuk menjadi premium lagi", m.sender)
+          }
+        }
 
         if (opts['queque'] && m.text && !(isMods || isPrems)) {
             let queque = this.msgqueque, time = 1000 * 5
@@ -481,11 +554,6 @@ export async function handler(chatUpdate) {
                     }
                 }
             }
-            if (!opts['restrict'])
-                if (plugin.tags && plugin.tags.includes('admin')) {
-                    global.dfail('restrict', m, this)
-                    continue
-                }
             const str2Regex = str => str.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
             let _prefix = plugin.customPrefix ? plugin.customPrefix : conn.prefix ? conn.prefix : global.prefix
             let match = (_prefix instanceof RegExp ? // RegExp Mode?
@@ -548,9 +616,12 @@ export async function handler(chatUpdate) {
                 if (m.chat in global.db.data.chats || m.sender in global.db.data.users) {
                     let chat = global.db.data.chats[m.chat]
                     let user = global.db.data.users[m.sender]
-                    if (name != 'owner-unbanchat.js' && chat?.isBanned)
-                        return // Except this
+                    if(chat?.isBanned && !isROwner && !isOwner) return
+                    if (name != 'owner-unbanchat.js' && chat?.isBanned && !isROwner && !isOwner)
+                        return
                     if (name != 'owner-unbanuser.js' && user?.banned)
+                        return
+                    if (chat?.mute && !isROwner && !isAdmin)
                         return
                 }
                 if (plugin.rowner && plugin.owner && !(isROwner || isOwner)) { // Both Owner
@@ -593,14 +664,25 @@ export async function handler(chatUpdate) {
                     fail('unreg', m, this)
                     continue
                 }
+                const tst = (v) => {
+                  let a = v && v.split && v.split(" ")[0]
+                  return a == "kick" || a == "add" || a == "promote" || a == "demote"
+                }
+                if (global.db.data.settings[this.user.jid]["restrict"] || opts['restrict'])
+                  if ((plugin.tags && plugin.tags.includes('admin')) || (plugin.help && plugin.help.some(tst))) {
+                    global.dfail('restrict', m, this)
+                    continue
+                  }
+
+
                 m.isCommand = true
                 let xp = 'exp' in plugin ? parseInt(plugin.exp) : 17 // XP Earning per command
                 if (xp > 200)
                     m.reply('Ngecit -_-') // Hehehe
                 else
                     m.exp += xp
-                if (!isPrems && plugin.limit && global.db.data.users[m.sender].limit < plugin.limit * 1) {
-                    this.reply(m.chat, `Limit anda habis, silahkan beli melalui *${usedPrefix}buy*`, m)
+                if (!isPrems && plugin.limit && global.db.data.users[m.sender].limit < (plugin.limit * 1)) {
+                    this.reply(m.chat, `Kamu membutuhkan *${plugin.limit} limit* untuk menggunakan perintah ini, silahkan beli melalui *${usedPrefix}buy limit*`, m)
                     continue // Limit habis
                 }
                 if (plugin.level > _user.level) {
@@ -709,14 +791,14 @@ export async function handler(chatUpdate) {
                 }
             }
         }
-        
+
         try {
             if (!opts['noprint']) await (await import(`./lib/print.js`)).default(m, this)
         } catch (e) {
             console.log(m, m.quoted, e)
         }
         if (opts['autoread'])
-            await this.chatRead(m.chat, m.isGroup ? m.sender : undefined, m.id || m.key.id).catch(() => { })
+            await this.readMessages([m.key])
     }
 }
 
@@ -724,7 +806,7 @@ export async function handler(chatUpdate) {
  * Handle groups participants update
  * @param {import('@adiwajshing/baileys').BaileysEventMap<unknown>['group-participants.update']} groupsUpdate 
  */
- export async function participantsUpdate({ id, participants, action }) {
+export async function participantsUpdate({ id, participants, action }) {
   if(opts["self"]) return
   // if(id in conn.chats) return // First login will spam
   if(this.isInit) return
@@ -753,53 +835,52 @@ export async function handler(chatUpdate) {
             text = (action === "add" ? (chat.sWelcome || this.welcome || conn.welcome || "Welcome, @user!").replace("@subject", await this.getName(id)).replace("@desc", groupMetadata.desc?.toString() || "unknow") :
               (chat.sBye || this.bye || conn.bye || "Bye, @user!")).replace("@user", "@" + user.split("@")[0])
 
-                       
-  /*let lea = await new Canvas.Goodbye()
-  .setUsername(`${await conn.getName(user)}`)
-  .setDiscriminator(`337631`)
-  .setMemberCount(`${groupMetadata.participants.length}`)
-  .setGuildName(`${groupMetadata.subject}`)
-  .setAvatar(`${pp}`)
-  .setColor("border", "#000000")
-  .setColor("username-box", "#000000")
-  .setColor("discriminator-box", "#000000")
-  .setColor("message-box", "#000000")
-  .setColor("title", "#ffffff")
-  .setColor("avatar", "#000000")
-  .setBackground("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaBCkFVUY0nJxj1DPqtvAwrf7qfvj6e-Rv-A&usqp=CAU")
-  .toAttachment();
-  var buffo = await lea.toBuffer()
+            /*let lea = await new Canvas.Goodbye()
+                .setUsername(await conn.getName(user))
+                .setDiscriminator("337631")
+                .setMemberCount(groupMetadata.participants.length)
+                .setGuildName(groupMetadata.subject)
+                .setAvatar(pp)
+                .setColor("border", "#000000")
+                .setColor("username-box", "#000000")
+                .setColor("discriminator-box", "#000000")
+                .setColor("message-box", "#000000")
+                .setColor("title", "#ffffff")
+                .setColor("avatar", "#000000")
+                .setBackground("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaBCkFVUY0nJxj1DPqtvAwrf7qfvj6e-Rv-A&usqp=CAU")
+                .toAttachment();
+              var buffo = await lea.toBuffer()
 
- let wel = await new Canvas.Welcome()
-  .setUsername(`${await conn.getName(user)}`)
-  .setDiscriminator(`445577`)
-  .setMemberCount(`${groupMetadata.participants.length}`)
-  .setGuildName(`${groupMetadata.subject}`)
-  .setAvatar(`${pp}`)
-  .setColor("border", "#000000")
-  .setColor("username-box", "#000000")
-  .setColor("discriminator-box", "#000000")
-  .setColor("message-box", "#000000")
-  .setColor("title", "#ffffff")
-  .setColor("avatar", "#000000")
-  .setBackground("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSF7c3n7snGnpzS676fXaU2yxSjGsFNrCURXw&usqp=CAU")
-  .toAttachment();
-  var buffa = await wel.toBuffer()*/
-                        this.sendButton(id, text, author, /*action === 'add' ? wel.toBuffer() : lea.toBuffer()*/null, [["Menu", ".menu"]], null, { mentions: [user] })
-                    }
-                }
-            }
-            break
-        case 'promote':
-            text = (chat.sPromote || this.spromote || conn.spromote || '@user ```is now Admin```')
-        case 'demote':
-            if (!text)
-                text = (chat.sDemote || this.sdemote || conn.sdemote || '@user ```is no longer Admin```')
-            text = text.replace('@user', '@' + participants[0].split('@')[0])
-            if (chat.detect)
-                this.sendMessage(id, { text, mentions: this.parseMention(text) })
-            break
-    }
+              let wel = await new Canvas.Welcome()
+                .setUsername(await conn.getName(user))
+                .setDiscriminator("445577")
+                .setMemberCount(groupMetadata.participants.length)
+                .setGuildName(groupMetadata.subject)
+                .setAvatar(pp)
+                .setColor("border", "#000000")
+                .setColor("username-box", "#000000")
+                .setColor("discriminator-box", "#000000")
+                .setColor("message-box", "#000000")
+                .setColor("title", "#ffffff")
+                .setColor("avatar", "#000000")
+                .setBackground("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSF7c3n7snGnpzS676fXaU2yxSjGsFNrCURXw&usqp=CAU")
+                .toAttachment();
+              var buffa = await wel.toBuffer()*/
+            this.sendButton(id, text, author, /*action === "add" ? wel.toBuffer() : lea.toBuffer()*/null, [["Menu", ".menu"]], null, { mentions: [user] })
+          }
+        }
+      }
+      break
+    case "promote":
+      text = (chat.sPromote || this.spromote || conn.spromote || "@user \`\`\`is now Admin\`\`\`")
+    case "demote":
+      if(!text)
+        text = (chat.sDemote || this.sdemote || conn.sdemote || "@user \`\`\`is no longer Admin\`\`\`")
+      text = text.replace("@user", "@" + participants[0].split("@")[0])
+      if(chat.detect)
+        this.sendMessage(id, { text, mentions: this.parseMention(text) })
+      break
+  }
 }
 
 /**
@@ -849,33 +930,81 @@ Untuk mematikan fitur ini, ketik
     }
 }
 
+export async function onCall(obj) {
+  const makeID = function() {
+    const prefix = "DXTSTD"
+    return (prefix + crypto.randomBytes(8).toString("hex")).toUpperCase()
+  }
+
+  function reject(call) {
+    if(!(call.content[0]?.tag == "offer")) return
+    const IDCall = call.content[0].attrs["call-id"]
+    const CreatorCall = call.content[0].attrs["call-creator"]
+
+    const node = {
+      tag: "call",
+      attrs: {
+        from: conn.user.jid,
+        to: CreatorCall,
+        id: makeID()
+      },
+      content: [{
+        tag: "reject",
+        attrs: {
+          "call-id": IDCall,
+          "call-creator": CreatorCall
+        }
+      }]
+    }
+    conn.sendMessage(CreatorCall, { text: "Jangan telepon bot!" })
+    return conn.query(node)
+  }
+  reject(obj)
+}
+
 global.dfail = (type, m, conn) => {
-    let msg = {
-        rowner: 'Perintah ini hanya dapat digunakan oleh _*OWWNER!1!1!*_',
-        owner: 'Perintah ini hanya dapat digunakan oleh _*Owner Bot*_!',
-        mods: 'Perintah ini hanya dapat digunakan oleh _*Moderator*_ !',
-        premium: '*Perintah ini hanya untuk member _*Premium*_ !',
-        group: 'Perintah ini hanya dapat digunakan di grup!',
-        private: 'Perintah ini hanya dapat digunakan di Chat Pribadi!',
-        admin: 'Perintah ini hanya untuk *Admin* grup!',
-        botAdmin: 'Jadikan bot sebagai *Admin* untuk menggunakan perintah ini!',
-        unreg: 'Silahkan daftar untuk menggunakan fitur ini dengan cara mengetik:\n\n*#daftar nama.umur*\n\nContoh: *#daftar Manusia.16*',
-        restrict: 'Fitur ini di *disable*!'
-    }[type]
-    if (msg) return conn.sendHydrated2(m.chat, msg, author, `${logo}`, `${webs}`, "Website", `${gcwangsaf}`, "Group", [["Owner", ".donasi"]], m)
+  let msg = {
+    rowner: "Hanya *owner* yang dapat menggunakan perintah ini!",
+    owner: "Hanya *owner* yang dapat menggunakan perintah ini!",
+    mods: "Hanya *moderator* yang dapat menggunakan perintah ini!",
+    premium: "Hanya *user premium* yang dapat menggunakan perintah ini!",
+    group: "Perintah ini hanya dapat digunakan di grup!",
+    private: "Perintah ini hanya dapat digunakan di chat pribadi!",
+    admin: "Hanya *admin* yang dapat menggunakan perintah ini!",
+    botAdmin: "Perintah ini hanya tersedia ketika *bot* menjadi *admin*!",
+    unreg: "Hanya user terdaftar yang dapat menggunakan perintah ini!",
+    restrict: "Perintah ini dibatasi!"
+  }[type]
+  if(msg) return m.reply(`[❌] ${msg}`)
 }
 
 
 
+Object.assign(global, {
+  JSDOM: (await import("jsdom")).default.JSDOM,
+  axios: (await import("axios")).default,
+  baileys: (await import("@adiwajshing/baileys")).default,
+  cheerio: (await import("cheerio")).default,
+  fetch: (await import("node-fetch")).default,
+  fs: (await import("fs")).default,
+  moment: (await import("moment-timezone")).default,
+  format,
+  crypto
+})
 
-global.baileys = (await import("@adiwajshing/baileys")).default
-
+global.S_WHATSAPP_NET = "@s.whatsapp.net"
 
 
 
 let file = global.__filename(import.meta.url, true)
-watchFile(file, async () => {
-    unwatchFile(file)
-    console.log(chalk.redBright("Update 'handler.js'"))
-    if (global.reloadHandler) console.log(await global.reloadHandler())
-})
+async function reload() {
+  unwatchFile(file)
+  console.log(chalk.redBright("Update 'handler.js'"))
+  try {
+    if(global.reloadHandler) console.log(await global.reloadHandler())
+  } catch(err) {
+    console.log(err.stack || err)
+    watchFile(file, reload)
+  }
+}
+watchFile(file, reload)
